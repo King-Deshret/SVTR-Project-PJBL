@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#ffffff"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="TextProduct Scanner"/>
+  <title>TextProduct Scanner</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body class="theme-white">
+
+  <!-- ═══════════════════════════════════════
+       SCREEN: HOME
+  ════════════════════════════════════════ -->
+  <div id="screen-home" class="screen active">
+    <div class="home-wrap">
+
+      <!-- Logo area -->
+      <div class="home-logo-area">
+        <div class="home-icon-ring">
+          <div class="home-icon">
+            <svg viewBox="0 0 56 56" fill="none" width="48" height="48">
+              <rect x="4" y="10" width="48" height="36" rx="7" stroke="var(--accent)" stroke-width="2.2"/>
+              <circle cx="28" cy="28" r="9" stroke="var(--accent)" stroke-width="2.2"/>
+              <circle cx="28" cy="28" r="3.5" fill="var(--accent)"/>
+              <rect x="20" y="6" width="16" height="6" rx="3" fill="var(--accent)"/>
+              <circle cx="46" cy="17" r="2.2" fill="var(--accent)"/>
+              <path d="M10 38h9M10 42h6" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>
+            </svg>
+          </div>
+        </div>
+        <h1 class="home-title">TextProduct<br/><span>Scanner</span></h1>
+        <p class="home-sub">Scan · Capture · Speak</p>
+      </div>
+
+      <!-- Main buttons -->
+      <div class="home-btns">
+        <button class="btn-primary" id="btn-open-camera">
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+              <rect x="2" y="6" width="20" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="12" cy="13.5" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M8 6l1.5-2.5h5L16 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="btn-content">
+            <span class="btn-title">Open Camera</span>
+            <span class="btn-desc">Scan or capture with your camera</span>
+          </span>
+          <span class="btn-arrow">›</span>
+        </button>
+
+        <button class="btn-secondary" id="btn-open-settings">
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="btn-content">
+            <span class="btn-title">Settings</span>
+            <span class="btn-desc">Resolution & theme colour</span>
+          </span>
+          <span class="btn-arrow">›</span>
+        </button>
+      </div>
+
+      <!-- Feature chips -->
+      <div class="feature-chips">
+        <span class="chip">📷 OCR</span>
+        <span class="chip">🔊 Text-to-Speech</span>
+        <span class="chip">💾 Save Photo</span>
+        <span class="chip">🔀 Flip Camera</span>
+      </div>
+
+      <p class="home-version">v2.0 · TextProduct Scanner</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCREEN: SETTINGS
+  ════════════════════════════════════════ -->
+  <div id="screen-settings" class="screen">
+    <div class="topbar">
+      <button class="topbar-back" id="settings-back">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <span class="topbar-title">Settings</span>
+      <span style="width:36px"></span>
+    </div>
+
+    <div class="settings-body">
+
+      <!-- Resolution -->
+      <div class="settings-section-label">CAMERA RESOLUTION</div>
+      <div class="settings-card">
+        <p class="settings-card-desc">Higher resolution = clearer scan but slower processing.</p>
+        <div class="res-pills" id="res-pills">
+          <button class="res-pill" data-res="720">720p</button>
+          <button class="res-pill active" data-res="1080">1080p <span class="rec-tag">Recommended</span></button>
+          <button class="res-pill" data-res="2160">4K</button>
+        </div>
+        <div class="res-info" id="res-info">1920 × 1080 — Balanced quality and speed</div>
+      </div>
+
+      <!-- Theme -->
+      <div class="settings-section-label">APP THEME COLOUR</div>
+      <div class="settings-card">
+        <p class="settings-card-desc">Choose between white or black background.</p>
+        <div class="theme-options" id="theme-options">
+          <button class="theme-opt active" data-theme="white">
+            <div class="theme-swatch theme-swatch-white">
+              <div class="theme-swatch-accent white-accent"></div>
+            </div>
+            <span>White</span>
+            <span class="theme-check" id="check-white">✓</span>
+          </button>
+          <button class="theme-opt" data-theme="black">
+            <div class="theme-swatch theme-swatch-black">
+              <div class="theme-swatch-accent black-accent"></div>
+            </div>
+            <span>Black</span>
+            <span class="theme-check hidden" id="check-black">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- API Server URL -->
+      <div class="settings-section-label">API SERVER (BACKEND)</div>
+      <div class="settings-card">
+        <p class="settings-card-desc">URL of your Microsoft Azure API server. Leave blank to use demo mode (no real OCR).</p>
+        <div class="input-row">
+          <input type="url" id="api-url-input" class="api-input" placeholder="https://your-azure-server.com/api/scan"/>
+        </div>
+        <button class="test-btn" id="btn-test-api">Test Connection</button>
+        <div id="api-status" class="api-status hidden"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCREEN: CAMERA
+  ════════════════════════════════════════ -->
+  <div id="screen-camera" class="screen">
+
+    <!-- Camera top bar -->
+    <div class="cam-topbar">
+      <button class="cam-topbar-btn" id="cam-back">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <span class="cam-topbar-title" id="cam-mode-label">SCAN MODE</span>
+      <button class="cam-topbar-btn" id="cam-flip">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M20 7h-7M20 7l-3-3M20 7l-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 17h7M4 17l3 3M4 17l3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 7h3a5 5 0 015 5M20 17h-3a5 5 0 01-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Camera viewport -->
+    <div class="cam-viewport" id="cam-viewport">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="cam-canvas"></canvas>
+
+      <!-- Scan overlay (only shown in scan mode) -->
+      <div class="scan-overlay" id="scan-overlay">
+        <div class="scan-corner tl"></div>
+        <div class="scan-corner tr"></div>
+        <div class="scan-corner bl"></div>
+        <div class="scan-corner br"></div>
+        <div class="scan-beam" id="scan-beam"></div>
+      </div>
+
+      <!-- Mode badge -->
+      <div class="cam-badge" id="cam-badge">SCAN</div>
+
+      <!-- Hint text -->
+      <div class="cam-hint" id="cam-hint">Point at text and tap the button</div>
+
+      <!-- Flash overlay -->
+      <div class="flash-overlay hidden" id="flash-overlay"></div>
+
+      <!-- Processing overlay -->
+      <div class="proc-overlay hidden" id="proc-overlay">
+        <div class="proc-spinner"></div>
+        <p class="proc-text" id="proc-text">Sending to server…</p>
+        <div class="proc-steps" id="proc-steps">
+          <div class="proc-step" id="step-capture">📸 Capturing image</div>
+          <div class="proc-step" id="step-send">📤 Sending to API server</div>
+          <div class="proc-step" id="step-preprocess">🔧 Preprocessing image</div>
+          <div class="proc-step" id="step-ocr">🔍 Running OCR + SVTR</div>
+          <div class="proc-step" id="step-result">✅ Receiving result</div>
+        </div>
+      </div>
+
+      <!-- No camera -->
+      <div class="no-cam hidden" id="no-cam">
+        <svg viewBox="0 0 48 48" fill="none" width="48" height="48">
+          <rect x="4" y="10" width="40" height="28" rx="5" stroke="currentColor" stroke-width="2" opacity=".4"/>
+          <path d="M8 8l32 32" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".4"/>
+        </svg>
+        <h3>Camera unavailable</h3>
+        <p id="no-cam-msg">Allow camera permission to continue</p>
+        <button onclick="Camera.start()" class="retry-btn">Retry</button>
+      </div>
+    </div>
+
+    <!-- Camera bottom controls -->
+    <div class="cam-controls" id="cam-controls">
+
+      <!-- Mode selector -->
+      <div class="mode-row">
+        <button class="mode-pill active" data-mode="scan" id="pill-scan">
+          <svg viewBox="0 0 18 18" fill="none" width="13" height="13">
+            <path d="M2 5V2h3M13 2h3v3M16 13v3h-3M5 16H2v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="6" y="6" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          Scan Text
+        </button>
+        <button class="mode-pill" data-mode="photo" id="pill-photo">
+          <svg viewBox="0 0 18 18" fill="none" width="13" height="13">
+            <rect x="2" y="4" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="9" cy="9.5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M6 4l1-1.5h4L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Photo
+        </button>
+      </div>
+
+      <!-- Shutter row -->
+      <div class="shutter-row">
+        <!-- Last capture thumb -->
+        <button class="thumb-btn" id="thumb-btn" title="View last capture">
+          <div class="thumb-empty" id="thumb-empty">
+            <svg viewBox="0 0 22 22" fill="none" width="18" height="18">
+              <rect x="2" y="2" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.4" opacity=".4"/>
+              <circle cx="7" cy="7" r="1.5" fill="currentColor" opacity=".4"/>
+              <path d="M2 14l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+            </svg>
+          </div>
+          <img id="thumb-img" class="hidden" alt=""/>
+        </button>
+
+        <!-- Shutter -->
+        <button class="shutter-btn" id="shutter-btn">
+          <div class="shutter-ring"></div>
+          <div class="shutter-dot" id="shutter-dot"></div>
+        </button>
+
+        <!-- Placeholder (balance layout) -->
+        <div style="width:52px;height:52px;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       SCREEN: RESULT
+  ════════════════════════════════════════ -->
+  <div id="screen-result" class="screen">
+    <div class="topbar">
+      <button class="topbar-back" id="result-back-cam">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <span class="topbar-title">Scan Result</span>
+      <button class="topbar-back" id="result-home">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M3 12L12 4l9 8M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="result-scroll">
+
+      <!-- Captured photo -->
+      <div class="result-img-wrap">
+        <img id="result-img" src="" alt="Captured"/>
+      </div>
+
+      <!-- Error banner (shown if backend failed) -->
+      <div class="error-banner hidden" id="error-banner">
+        <span>⚠️</span>
+        <span id="error-msg">Could not connect to server</span>
+      </div>
+
+      <!-- OCR Text result card -->
+      <div class="result-card" id="result-text-card">
+        <div class="result-card-header">
+          <span class="result-card-title">📝 Recognized Text</span>
+          <div class="result-meta-row">
+            <span class="meta-chip" id="word-count-chip">0 words</span>
+            <span class="meta-chip accent-chip" id="conf-chip" style="display:none"></span>
+          </div>
+        </div>
+        <div class="result-textbox" id="result-textbox" contenteditable="true" spellcheck="false">
+          <span class="placeholder-text">No text detected</span>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="result-actions">
+        <button class="act-btn act-green" id="act-speak">
+          <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
+            <path d="M10 4L5 8H2v6h3l5 4V4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M14.5 7.5a5 5 0 010 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M17.5 5a9 9 0 010 12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          <span id="speak-label">Read Aloud</span>
+        </button>
+        <button class="act-btn act-grey" id="act-copy">
+          <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
+            <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5 14H4a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7"/>
+          </svg>
+          <span id="copy-label">Copy Text</span>
+        </button>
+        <button class="act-btn act-grey" id="act-save">
+          <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
+            <path d="M11 3v12M7 10l4 5 4-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 18h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          Save Photo
+        </button>
+      </div>
+
+      <!-- TTS speaking bar -->
+      <div class="tts-bar hidden" id="tts-bar">
+        <div class="tts-waves">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <span class="tts-label">Speaking…</span>
+        <button class="tts-stop" id="tts-stop">Stop</button>
+      </div>
+
+      <!-- Scan again button -->
+      <button class="scan-again-btn" id="scan-again-btn">
+        📷 Scan Again
+      </button>
+
+      <div style="height:32px"></div>
+    </div>
+  </div>
+
+  <!-- TOAST notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Scripts -->
+  <script src="js/settings.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/ocr.js"></script>
+  <script src="js/tts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
