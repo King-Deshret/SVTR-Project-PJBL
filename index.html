@@ -1,1043 +1,369 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<meta name="theme-color" content="#0d0d0d"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="TextProduct Scanner"/>
-<title>TextProduct Scanner</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-<style>
-/* ====== RESET ====== */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0d0d0d;--surf:#1a1a1a;--surf2:#242424;
-  --border:rgba(255,255,255,0.08);
-  --accent:#4fffb0;--red:#ff6b6b;
-  --text:#f0f0f0;--muted:#888;--muted2:#555;
-  --safe-t:env(safe-area-inset-top,0px);
-  --safe-b:env(safe-area-inset-bottom,0px);
-}
-html,body{
-  background:var(--bg);color:var(--text);
-  font-family:'DM Sans',sans-serif;
-  height:100%;width:100%;overflow:hidden;
-  -webkit-tap-highlight-color:transparent;
-  user-select:none;
-}
-button{background:none;border:none;cursor:pointer;color:inherit;font-family:inherit;}
-.hidden{display:none!important;}
-
-/* ====== SPLASH ====== */
-#splash{
-  position:fixed;inset:0;z-index:999;
-  background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:12px;
-}
-.sp-icon{margin-bottom:4px;}
-.sp-icon svg{width:72px;height:72px;filter:drop-shadow(0 0 20px #4fffb060);}
-.sp-title{font-size:2rem;font-weight:700;color:#fff;text-align:center;line-height:1.15;letter-spacing:-0.02em;}
-.sp-title span{color:var(--accent);}
-.sp-sub{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted);letter-spacing:0.18em;text-transform:uppercase;}
-.sp-bar{width:120px;height:2px;background:var(--surf2);border-radius:2px;overflow:hidden;margin-top:16px;}
-.sp-fill{height:100%;width:0;background:var(--accent);border-radius:2px;animation:spfill 2.2s ease forwards;}
-@keyframes spfill{to{width:100%;}}
-
-/* ====== APP ====== */
-#app{
-  position:fixed;inset:0;
-  display:flex;flex-direction:column;
-  padding-top:var(--safe-t);padding-bottom:var(--safe-b);
-}
-
-/* ====== TOPBAR ====== */
-.topbar{
-  height:52px;display:flex;align-items:center;justify-content:space-between;
-  padding:0 16px;background:var(--bg);
-  border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;
-}
-.logo{display:flex;align-items:center;gap:8px;}
-.logo span{font-weight:700;font-size:0.92rem;letter-spacing:-0.01em;}
-.logo svg{flex-shrink:0;}
-.tb-btn{
-  width:40px;height:40px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;
-  color:var(--muted);transition:background .15s,color .15s;
-}
-.tb-btn:active{background:var(--surf2);color:var(--text);}
-
-/* ====== CAMERA ====== */
-#cam-wrap{
-  flex:1;position:relative;overflow:hidden;background:#000;
-}
-#video{width:100%;height:100%;object-fit:cover;display:block;}
-#canvas{display:none;}
-
-.bracket{position:absolute;width:24px;height:24px;border-color:var(--accent);border-style:solid;pointer-events:none;}
-.bracket.tl{top:16px;left:16px;border-width:2.5px 0 0 2.5px;border-radius:3px 0 0 0;}
-.bracket.tr{top:16px;right:16px;border-width:2.5px 2.5px 0 0;border-radius:0 3px 0 0;}
-.bracket.bl{bottom:16px;left:16px;border-width:0 0 2.5px 2.5px;border-radius:0 0 0 3px;}
-.bracket.br{bottom:16px;right:16px;border-width:0 2.5px 2.5px 0;border-radius:0 0 3px 0;}
-
-#scan-beam{
-  position:absolute;left:16px;right:16px;height:1.5px;
-  background:linear-gradient(90deg,transparent,var(--accent) 30%,var(--accent) 70%,transparent);
-  box-shadow:0 0 10px var(--accent);pointer-events:none;
-  animation:beam 2.8s ease-in-out infinite;
-}
-@keyframes beam{0%,100%{top:16px;opacity:.5;}50%{top:calc(100% - 16px);opacity:1;}}
-
-#cam-hint{
-  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
-  color:rgba(255,255,255,.75);font-size:.75rem;
-  padding:5px 14px;border-radius:20px;white-space:nowrap;pointer-events:none;
-}
-
-#flash-ov{
-  position:absolute;inset:0;background:#fff;pointer-events:none;
-  animation:flashout .28s ease-out forwards;
-}
-@keyframes flashout{0%{opacity:.85;}100%{opacity:0;}}
-
-/* Processing overlay */
-#proc-ov{
-  position:absolute;inset:0;
-  background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:14px;z-index:20;
-}
-.spinner{
-  width:44px;height:44px;border-radius:50%;
-  border:3px solid rgba(79,255,176,.2);border-top-color:var(--accent);
-  animation:spin .8s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg);}}
-#proc-ov p{color:#fff;font-size:.88rem;}
-.proc-bar-wrap{width:160px;height:3px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden;}
-#proc-bar{height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .3s;}
-
-/* No camera */
-#no-cam{
-  position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:10px;text-align:center;padding:24px;color:var(--muted);
-}
-#no-cam h3{color:var(--text);font-size:1rem;font-weight:600;}
-#no-cam p{font-size:.82rem;line-height:1.6;max-width:280px;}
-#no-cam button{
-  margin-top:10px;background:var(--accent);color:#000;
-  padding:11px 28px;border-radius:10px;font-weight:700;font-size:.9rem;
-}
-
-/* ====== CONTROLS ====== */
-.controls{
-  background:var(--bg);border-top:1px solid var(--border);
-  padding:10px 20px 14px;flex-shrink:0;
-  display:flex;flex-direction:column;gap:10px;
-}
-
-/* Mode pills */
-.mode-row{display:flex;justify-content:center;gap:8px;}
-.mode-pill{
-  display:flex;align-items:center;gap:6px;
-  padding:7px 18px;border-radius:30px;
-  font-size:.8rem;font-weight:600;color:var(--muted);
-  background:var(--surf);border:1px solid var(--border);
-  transition:all .2s;
-}
-.mode-pill.active{background:rgba(79,255,176,.12);border-color:rgba(79,255,176,.35);color:var(--accent);}
-.mode-pill:active{transform:scale(.95);}
-
-/* Shutter row */
-.shutter-row{display:flex;align-items:center;justify-content:space-between;}
-#btn-shutter{
-  width:70px;height:70px;border-radius:50%;
-  border:2.5px solid rgba(255,255,255,.6);
-  display:flex;align-items:center;justify-content:center;
-  position:relative;transition:transform .1s;
-}
-#btn-shutter:active{transform:scale(.9);}
-.s-ring{
-  position:absolute;inset:4px;border-radius:50%;
-  border:1.5px solid rgba(255,255,255,.12);
-}
-.s-dot{
-  width:54px;height:54px;border-radius:50%;background:#fff;
-  transition:background .15s,transform .1s;
-}
-#btn-shutter:active .s-dot{background:var(--accent);transform:scale(.88);}
-body.mode-scan #btn-shutter{border-color:var(--accent);}
-body.mode-scan .s-dot{background:var(--accent);}
-
-.side-btn{
-  width:52px;height:52px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--surf);border:1px solid var(--border);
-  color:var(--text);transition:transform .1s,background .15s;
-}
-.side-btn:active{transform:scale(.9);background:var(--surf2);}
-#thumb-wrap{overflow:hidden;}
-#thumb-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);}
-#thumb-img{width:100%;height:100%;object-fit:cover;}
-
-/* Tool buttons */
-.tools-row{display:flex;gap:8px;}
-.tool-btn{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:4px;padding:9px 6px;
-  background:var(--surf);border:1px solid var(--border);border-radius:12px;
-  font-size:.68rem;color:var(--muted);font-weight:500;
-  transition:all .15s;
-}
-.tool-btn:not(:disabled){color:var(--text);border-color:rgba(255,255,255,.12);}
-.tool-btn:not(:disabled):active{transform:scale(.95);background:var(--surf2);}
-.tool-btn:disabled{opacity:.3;cursor:not-allowed;}
-
-/* ====== RESULT SHEET ====== */
-.sheet{
-  position:absolute;bottom:0;left:0;right:0;
-  background:var(--surf);border-radius:22px 22px 0 0;
-  padding-bottom:calc(14px + var(--safe-b));
-  z-index:50;max-height:90vh;overflow-y:auto;
-  animation:sheetup .32s cubic-bezier(.34,1.56,.64,1);
-  box-shadow:0 -8px 40px rgba(0,0,0,.6);
-}
-@keyframes sheetup{from{transform:translateY(100%);}to{transform:translateY(0);}}
-.sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;}
-.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px 10px;}
-.sheet-head-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.95rem;}
-.x-btn{
-  width:32px;height:32px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--surf2);color:var(--muted);
-}
-.x-btn:active{background:#333;}
-
-.sheet-img-wrap{
-  margin:0 18px 12px;border-radius:12px;overflow:hidden;
-  background:#000;max-height:200px;
-  display:flex;align-items:center;justify-content:center;
-}
-.sheet-img-wrap img{max-width:100%;max-height:200px;object-fit:contain;display:block;}
-
-.txt-wrap{margin:0 18px 12px;}
-#result-text{
-  background:var(--bg);border:1px solid var(--border);border-radius:12px;
-  padding:14px;font-family:'DM Mono',monospace;font-size:.82rem;line-height:1.7;
-  color:var(--text);min-height:80px;max-height:160px;overflow-y:auto;
-  white-space:pre-wrap;word-break:break-word;
-  user-select:text;-webkit-user-select:text;outline:none;
-}
-#result-text:focus{border-color:rgba(79,255,176,.3);}
-.txt-meta{display:flex;gap:8px;margin-top:6px;}
-.meta-chip{
-  font-family:'DM Mono',monospace;font-size:.68rem;
-  background:var(--surf2);color:var(--muted);
-  padding:3px 10px;border-radius:20px;
-}
-
-.sheet-acts{display:flex;gap:8px;padding:0 18px;}
-.act-btn{
-  flex:1;display:flex;align-items:center;justify-content:center;gap:7px;
-  padding:12px 8px;border-radius:12px;
-  font-size:.82rem;font-weight:600;
-  transition:transform .1s,filter .15s;
-}
-.act-btn:active{transform:scale(.96);filter:brightness(.85);}
-.act-green{background:rgba(79,255,176,.14);color:var(--accent);border:1px solid rgba(79,255,176,.25);}
-.act-grey{background:var(--surf2);color:var(--text);border:1px solid var(--border);}
-
-/* TTS bar */
-.tts-bar{
-  display:flex;align-items:center;gap:10px;
-  background:rgba(79,255,176,.08);border:1px solid rgba(79,255,176,.2);
-  margin:10px 18px 0;padding:10px 14px;border-radius:12px;
-}
-.tts-wave{display:flex;align-items:center;gap:3px;}
-.tts-wave span{display:block;width:3px;background:var(--accent);border-radius:3px;animation:wv .8s ease-in-out infinite;}
-.tts-wave span:nth-child(1){height:6px;animation-delay:0s;}
-.tts-wave span:nth-child(2){height:12px;animation-delay:.1s;}
-.tts-wave span:nth-child(3){height:18px;animation-delay:.2s;}
-.tts-wave span:nth-child(4){height:12px;animation-delay:.3s;}
-.tts-wave span:nth-child(5){height:6px;animation-delay:.4s;}
-@keyframes wv{0%,100%{transform:scaleY(.5);}50%{transform:scaleY(1.4);}}
-#tts-status{flex:1;font-size:.8rem;color:var(--accent);}
-.tts-stop{
-  background:rgba(255,107,107,.15);color:var(--red);
-  border:1px solid rgba(255,107,107,.25);
-  padding:5px 14px;border-radius:8px;font-size:.78rem;font-weight:600;
-}
-.tts-stop:active{filter:brightness(.85);}
-
-/* ====== HISTORY PANEL ====== */
-.panel{
-  position:absolute;inset:0;z-index:60;
-  background:var(--bg);
-  display:flex;flex-direction:column;
-  padding-top:var(--safe-t);
-  animation:panelin .28s ease;
-}
-@keyframes panelin{from{transform:translateX(100%);}to{transform:translateX(0);}}
-.panel-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px;border-bottom:1px solid var(--border);
-}
-.panel-head h2{font-size:1rem;font-weight:700;}
-.back-btn{
-  width:36px;height:36px;border-radius:10px;
-  display:flex;align-items:center;justify-content:center;color:var(--text);
-}
-.back-btn:active{background:var(--surf2);}
-.danger-btn{font-size:.82rem;font-weight:600;color:var(--red);padding:6px 12px;border-radius:8px;}
-.danger-btn:active{background:rgba(255,107,107,.1);}
-
-#hist-list{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px;}
-.empty-st{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:10px;color:var(--muted);padding:40px 0;font-size:.88rem;text-align:center;
-}
-
-.hist-item{
-  background:var(--surf);border:1px solid var(--border);
-  border-radius:14px;overflow:hidden;display:flex;
-  cursor:pointer;transition:background .15s;
-}
-.hist-item:active{background:var(--surf2);}
-.hist-thumb{width:68px;height:68px;flex-shrink:0;object-fit:cover;}
-.hist-body{flex:1;padding:10px 12px;overflow:hidden;}
-.hist-preview{
-  font-family:'DM Mono',monospace;font-size:.74rem;color:var(--text);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;
-}
-.hist-date{font-size:.68rem;color:var(--muted);}
-.hist-acts{display:flex;align-items:center;gap:6px;padding:0 10px;flex-shrink:0;}
-.hist-act-btn{
-  width:32px;height:32px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--surf2);color:var(--muted);
-  transition:background .15s,color .15s;
-}
-.hist-act-btn:active{background:#333;color:var(--text);}
-
-/* ====== TOAST ====== */
-#toast{
-  position:fixed;bottom:calc(var(--safe-b) + 185px);left:50%;
-  transform:translateX(-50%);
-  background:var(--surf2);color:var(--text);
-  border:1px solid var(--border);
-  padding:9px 20px;border-radius:30px;font-size:.82rem;
-  white-space:nowrap;z-index:999;pointer-events:none;
-  animation:tin .22s ease;
-  box-shadow:0 4px 20px rgba(0,0,0,.5);
-}
-.toast-ok{background:rgba(79,255,176,.12)!important;border-color:rgba(79,255,176,.3)!important;color:var(--accent)!important;}
-.toast-err{background:rgba(255,107,107,.12)!important;border-color:rgba(255,107,107,.3)!important;color:var(--red)!important;}
-@keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(6px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
-
-::-webkit-scrollbar{width:3px;}
-::-webkit-scrollbar-track{background:transparent;}
-::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
-</style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#ffffff"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="TextProduct Scanner"/>
+  <title>TextProduct Scanner</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 </head>
-<body>
+<body class="theme-white">
 
-<!-- SPLASH -->
-<div id="splash">
-  <div class="sp-icon">
-    <svg viewBox="0 0 56 56" fill="none">
-      <rect x="4" y="10" width="48" height="36" rx="6" stroke="#4fffb0" stroke-width="2"/>
-      <circle cx="28" cy="28" r="9" stroke="#4fffb0" stroke-width="2"/>
-      <circle cx="28" cy="28" r="3.5" fill="#4fffb0"/>
-      <rect x="20" y="6" width="16" height="6" rx="3" fill="#4fffb0"/>
-      <circle cx="46" cy="17" r="2" fill="#4fffb0"/>
-      <path d="M10 38h10M10 42h7" stroke="#4fffb0" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>
-    </svg>
-  </div>
-  <div class="sp-title">TextProduct<br/><span>Scanner</span></div>
-  <div class="sp-sub">Scan · Read · Speak</div>
-  <div class="sp-bar"><div class="sp-fill"></div></div>
-</div>
+  <!-- ═══════════════════════════════════════
+       SCREEN: HOME
+  ════════════════════════════════════════ -->
+  <div id="screen-home" class="screen active">
+    <div class="home-wrap">
 
-<!-- APP -->
-<div id="app" class="hidden">
-
-  <!-- TOPBAR -->
-  <div class="topbar">
-    <div class="logo">
-      <svg viewBox="0 0 22 22" fill="none" width="20" height="20">
-        <rect x="2" y="4" width="18" height="14" rx="3" stroke="#4fffb0" stroke-width="1.8"/>
-        <circle cx="11" cy="11" r="3.5" stroke="#4fffb0" stroke-width="1.8"/>
-        <circle cx="11" cy="11" r="1.3" fill="#4fffb0"/>
-      </svg>
-      <span>TextProduct</span>
-    </div>
-    <button id="btn-history" class="tb-btn" title="History">
-      <svg viewBox="0 0 22 22" fill="none" width="20" height="20">
-        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.8"/>
-        <path d="M11 7v4l2.5 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-      </svg>
-    </button>
-  </div>
-
-  <!-- CAMERA -->
-  <div id="cam-wrap">
-    <video id="video" autoplay playsinline muted></video>
-    <canvas id="canvas"></canvas>
-    <div class="bracket tl"></div>
-    <div class="bracket tr"></div>
-    <div class="bracket bl"></div>
-    <div class="bracket br"></div>
-    <div id="scan-beam"></div>
-    <div id="cam-hint">Point at text to scan</div>
-    <div id="flash-ov" class="hidden"></div>
-
-    <!-- Processing -->
-    <div id="proc-ov" class="hidden">
-      <div class="spinner"></div>
-      <p id="proc-lbl">Recognizing text…</p>
-      <div class="proc-bar-wrap"><div id="proc-bar"></div></div>
-    </div>
-
-    <!-- No camera -->
-    <div id="no-cam" class="hidden">
-      <svg viewBox="0 0 48 48" fill="none" width="52" height="52">
-        <rect x="4" y="10" width="40" height="28" rx="5" stroke="currentColor" stroke-width="2" opacity=".35"/>
-        <path d="M8 8l32 32" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".35"/>
-      </svg>
-      <h3>Camera not available</h3>
-      <p id="no-cam-msg">Please allow camera permission</p>
-      <button onclick="startCamera()">Retry</button>
-    </div>
-  </div>
-
-  <!-- CONTROLS -->
-  <div class="controls">
-    <!-- Mode pills -->
-    <div class="mode-row">
-      <button class="mode-pill active" data-mode="scan">
-        <svg viewBox="0 0 18 18" fill="none" width="13" height="13">
-          <path d="M2 6V3h3M13 3h3v3M16 12v3h-3M5 16H2v-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <rect x="6" y="6" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.6"/>
-        </svg>
-        Scan Text
-      </button>
-      <button class="mode-pill" data-mode="photo">
-        <svg viewBox="0 0 18 18" fill="none" width="13" height="13">
-          <rect x="2" y="5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/>
-          <circle cx="9" cy="10" r="2.5" stroke="currentColor" stroke-width="1.6"/>
-          <path d="M6 5l1.2-2h3.6L12 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Photo
-      </button>
-    </div>
-
-    <!-- Shutter row -->
-    <div class="shutter-row">
-      <!-- Thumbnail -->
-      <button id="btn-last" class="side-btn" id="thumb-wrap" title="Last capture">
-        <div id="thumb-empty">
-          <svg viewBox="0 0 22 22" fill="none" width="20" height="20">
-            <rect x="2" y="2" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/>
-            <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" opacity=".4"/>
-            <path d="M2 14l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
-          </svg>
+      <!-- Logo area -->
+      <div class="home-logo-area">
+        <div class="home-icon-ring">
+          <div class="home-icon">
+            <svg viewBox="0 0 56 56" fill="none" width="48" height="48">
+              <rect x="4" y="10" width="48" height="36" rx="7" stroke="var(--accent)" stroke-width="2.2"/>
+              <circle cx="28" cy="28" r="9" stroke="var(--accent)" stroke-width="2.2"/>
+              <circle cx="28" cy="28" r="3.5" fill="var(--accent)"/>
+              <rect x="20" y="6" width="16" height="6" rx="3" fill="var(--accent)"/>
+              <circle cx="46" cy="17" r="2.2" fill="var(--accent)"/>
+              <path d="M10 38h9M10 42h6" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>
+            </svg>
+          </div>
         </div>
-        <img id="thumb-img" class="hidden" alt=""/>
-      </button>
+        <h1 class="home-title">TextProduct<br/><span>Scanner</span></h1>
+        <p class="home-sub">Scan · Capture · Speak</p>
+      </div>
 
-      <!-- Shutter -->
-      <button id="btn-shutter">
-        <div class="s-ring"></div>
-        <div class="s-dot"></div>
-      </button>
+      <!-- Main buttons -->
+      <div class="home-btns">
+        <button class="btn-primary" id="btn-open-camera">
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+              <rect x="2" y="6" width="20" height="15" rx="3" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="12" cy="13.5" r="3.5" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M8 6l1.5-2.5h5L16 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="btn-content">
+            <span class="btn-title">Open Camera</span>
+            <span class="btn-desc">Scan or capture with your camera</span>
+          </span>
+          <span class="btn-arrow">›</span>
+        </button>
 
-      <!-- Flip -->
-      <button id="btn-flip" class="side-btn" title="Flip camera">
-        <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
-          <path d="M19 8h-6M19 8l-3-3M19 8l-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M5 16h6M5 16l3 3M5 16l3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M5 8h2a5 5 0 015 5M19 16h-2a5 5 0 01-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
+        <button class="btn-secondary" id="btn-open-settings">
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="btn-content">
+            <span class="btn-title">Settings</span>
+            <span class="btn-desc">Resolution & theme colour</span>
+          </span>
+          <span class="btn-arrow">›</span>
+        </button>
+      </div>
 
-    <!-- Tool row -->
-    <div class="tools-row">
-      <button id="btn-speak" class="tool-btn" disabled>
-        <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
-          <path d="M10 4L5 8H2v6h3l5 4V4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-          <path d="M14.5 7.5a5 5 0 010 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-          <path d="M17.5 4.5a9 9 0 010 13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-        <span>Speak</span>
-      </button>
-      <button id="btn-copy" class="tool-btn" disabled>
-        <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
-          <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
-          <path d="M5 14H4a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7"/>
-        </svg>
-        <span>Copy</span>
-      </button>
-      <button id="btn-save" class="tool-btn" disabled>
-        <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
-          <path d="M11 3v12M7 10l4 5 4-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3 18h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-        <span>Save</span>
-      </button>
+      <!-- Feature chips -->
+      <div class="feature-chips">
+        <span class="chip">📷 OCR</span>
+        <span class="chip">🔊 Text-to-Speech</span>
+        <span class="chip">💾 Save Photo</span>
+        <span class="chip">🔀 Flip Camera</span>
+      </div>
+
+      <p class="home-version">v2.0 · TextProduct Scanner</p>
     </div>
   </div>
 
-  <!-- RESULT SHEET -->
-  <div id="result-sheet" class="sheet hidden">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <div class="sheet-head-title">
-        <svg viewBox="0 0 18 18" fill="none" width="15" height="15">
-          <rect x="2" y="2" width="14" height="14" rx="2" stroke="#4fffb0" stroke-width="1.6"/>
-          <path d="M5 6h8M5 9h8M5 12h5" stroke="#4fffb0" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- ═══════════════════════════════════════
+       SCREEN: SETTINGS
+  ════════════════════════════════════════ -->
+  <div id="screen-settings" class="screen">
+    <div class="topbar">
+      <button class="topbar-back" id="settings-back">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        Recognized Text
+      </button>
+      <span class="topbar-title">Settings</span>
+      <span style="width:36px"></span>
+    </div>
+
+    <div class="settings-body">
+
+      <!-- Resolution -->
+      <div class="settings-section-label">CAMERA RESOLUTION</div>
+      <div class="settings-card">
+        <p class="settings-card-desc">Higher resolution = clearer scan but slower processing.</p>
+        <div class="res-pills" id="res-pills">
+          <button class="res-pill" data-res="720">720p</button>
+          <button class="res-pill active" data-res="1080">1080p <span class="rec-tag">Recommended</span></button>
+          <button class="res-pill" data-res="2160">4K</button>
+        </div>
+        <div class="res-info" id="res-info">1920 × 1080 — Balanced quality and speed</div>
       </div>
-      <button id="close-sheet" class="x-btn">
-        <svg viewBox="0 0 18 18" fill="none" width="16" height="16">
-          <path d="M14 4L4 14M4 4l10 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
-    <div class="sheet-img-wrap">
-      <img id="res-img" src="" alt="Captured"/>
-    </div>
-    <div class="txt-wrap">
-      <div id="result-text" contenteditable="true" spellcheck="false"></div>
-      <div class="txt-meta">
-        <span id="word-count" class="meta-chip">0 words</span>
-        <span id="conf-val" class="meta-chip">—</span>
+
+      <!-- Theme -->
+      <div class="settings-section-label">APP THEME COLOUR</div>
+      <div class="settings-card">
+        <p class="settings-card-desc">Choose between white or black background.</p>
+        <div class="theme-options" id="theme-options">
+          <button class="theme-opt active" data-theme="white">
+            <div class="theme-swatch theme-swatch-white">
+              <div class="theme-swatch-accent white-accent"></div>
+            </div>
+            <span>White</span>
+            <span class="theme-check" id="check-white">✓</span>
+          </button>
+          <button class="theme-opt" data-theme="black">
+            <div class="theme-swatch theme-swatch-black">
+              <div class="theme-swatch-accent black-accent"></div>
+            </div>
+            <span>Black</span>
+            <span class="theme-check hidden" id="check-black">✓</span>
+          </button>
+        </div>
       </div>
-    </div>
-    <div class="sheet-acts">
-      <button id="s-speak" class="act-btn act-green">
-        <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-          <path d="M9 4L4 8H1v6h3l5 4V4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-          <path d="M13 7a4 4 0 010 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-        Read Aloud
-      </button>
-      <button id="s-copy" class="act-btn act-grey">
-        <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-          <rect x="7" y="7" width="11" height="11" rx="2" stroke="currentColor" stroke-width="1.7"/>
-          <path d="M4 13H3a2 2 0 01-2-2V3a2 2 0 012-2h8a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7"/>
-        </svg>
-        Copy
-      </button>
-      <button id="s-save" class="act-btn act-grey">
-        <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-          <path d="M10 2v11M6 9l4 5 4-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M2 17h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-        </svg>
-        Save
-      </button>
-    </div>
-    <div id="tts-bar" class="tts-bar hidden">
-      <div class="tts-wave"><span></span><span></span><span></span><span></span><span></span></div>
-      <span id="tts-status">Speaking…</span>
-      <button id="tts-stop" class="tts-stop">Stop</button>
+
+      <!-- API Server URL -->
+      <div class="settings-section-label">API SERVER (BACKEND)</div>
+      <div class="settings-card">
+        <p class="settings-card-desc">URL of your Microsoft Azure API server. Leave blank to use demo mode (no real OCR).</p>
+        <div class="input-row">
+          <input type="url" id="api-url-input" class="api-input" placeholder="https://your-azure-server.com/api/scan"/>
+        </div>
+        <button class="test-btn" id="btn-test-api">Test Connection</button>
+        <div id="api-status" class="api-status hidden"></div>
+      </div>
+
     </div>
   </div>
 
-  <!-- HISTORY PANEL -->
-  <div id="hist-panel" class="panel hidden">
-    <div class="panel-head">
-      <button id="close-hist" class="back-btn">
-        <svg viewBox="0 0 22 22" fill="none" width="19" height="19">
-          <path d="M18 11H4M4 11l7 7M4 11l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- ═══════════════════════════════════════
+       SCREEN: CAMERA
+  ════════════════════════════════════════ -->
+  <div id="screen-camera" class="screen">
+
+    <!-- Camera top bar -->
+    <div class="cam-topbar">
+      <button class="cam-topbar-btn" id="cam-back">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
-      <h2>Scan History</h2>
-      <button id="clear-hist" class="danger-btn">Clear All</button>
-    </div>
-    <div id="hist-list">
-      <div class="empty-st" id="hist-empty">
-        <svg viewBox="0 0 48 48" fill="none" width="46" height="46">
-          <rect x="8" y="8" width="32" height="32" rx="4" stroke="currentColor" stroke-width="1.5" opacity=".3"/>
-          <path d="M15 20h18M15 24h14M15 28h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity=".3"/>
+      <span class="cam-topbar-title" id="cam-mode-label">SCAN MODE</span>
+      <button class="cam-topbar-btn" id="cam-flip">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M20 7h-7M20 7l-3-3M20 7l-3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 17h7M4 17l3 3M4 17l3-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 7h3a5 5 0 015 5M20 17h-3a5 5 0 01-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
-        <p>No scans yet.<br/>Capture something first!</p>
+      </button>
+    </div>
+
+    <!-- Camera viewport -->
+    <div class="cam-viewport" id="cam-viewport">
+      <video id="cam-video" autoplay playsinline muted></video>
+      <canvas id="cam-canvas"></canvas>
+
+      <!-- Scan overlay (only shown in scan mode) -->
+      <div class="scan-overlay" id="scan-overlay">
+        <div class="scan-corner tl"></div>
+        <div class="scan-corner tr"></div>
+        <div class="scan-corner bl"></div>
+        <div class="scan-corner br"></div>
+        <div class="scan-beam" id="scan-beam"></div>
       </div>
+
+      <!-- Mode badge -->
+      <div class="cam-badge" id="cam-badge">SCAN</div>
+
+      <!-- Hint text -->
+      <div class="cam-hint" id="cam-hint">Point at text and tap the button</div>
+
+      <!-- Flash overlay -->
+      <div class="flash-overlay hidden" id="flash-overlay"></div>
+
+      <!-- Processing overlay -->
+      <div class="proc-overlay hidden" id="proc-overlay">
+        <div class="proc-spinner"></div>
+        <p class="proc-text" id="proc-text">Sending to server…</p>
+        <div class="proc-steps" id="proc-steps">
+          <div class="proc-step" id="step-capture">📸 Capturing image</div>
+          <div class="proc-step" id="step-send">📤 Sending to API server</div>
+          <div class="proc-step" id="step-preprocess">🔧 Preprocessing image</div>
+          <div class="proc-step" id="step-ocr">🔍 Running OCR + SVTR</div>
+          <div class="proc-step" id="step-result">✅ Receiving result</div>
+        </div>
+      </div>
+
+      <!-- No camera -->
+      <div class="no-cam hidden" id="no-cam">
+        <svg viewBox="0 0 48 48" fill="none" width="48" height="48">
+          <rect x="4" y="10" width="40" height="28" rx="5" stroke="currentColor" stroke-width="2" opacity=".4"/>
+          <path d="M8 8l32 32" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".4"/>
+        </svg>
+        <h3>Camera unavailable</h3>
+        <p id="no-cam-msg">Allow camera permission to continue</p>
+        <button onclick="Camera.start()" class="retry-btn">Retry</button>
+      </div>
+    </div>
+
+    <!-- Camera bottom controls -->
+    <div class="cam-controls" id="cam-controls">
+
+      <!-- Mode selector -->
+      <div class="mode-row">
+        <button class="mode-pill active" data-mode="scan" id="pill-scan">
+          <svg viewBox="0 0 18 18" fill="none" width="13" height="13">
+            <path d="M2 5V2h3M13 2h3v3M16 13v3h-3M5 16H2v-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <rect x="6" y="6" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          Scan Text
+        </button>
+        <button class="mode-pill" data-mode="photo" id="pill-photo">
+          <svg viewBox="0 0 18 18" fill="none" width="13" height="13">
+            <rect x="2" y="4" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="9" cy="9.5" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M6 4l1-1.5h4L12 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Photo
+        </button>
+      </div>
+
+      <!-- Shutter row -->
+      <div class="shutter-row">
+        <!-- Last capture thumb -->
+        <button class="thumb-btn" id="thumb-btn" title="View last capture">
+          <div class="thumb-empty" id="thumb-empty">
+            <svg viewBox="0 0 22 22" fill="none" width="18" height="18">
+              <rect x="2" y="2" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.4" opacity=".4"/>
+              <circle cx="7" cy="7" r="1.5" fill="currentColor" opacity=".4"/>
+              <path d="M2 14l5-5 4 4 3-3 6 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".4"/>
+            </svg>
+          </div>
+          <img id="thumb-img" class="hidden" alt=""/>
+        </button>
+
+        <!-- Shutter -->
+        <button class="shutter-btn" id="shutter-btn">
+          <div class="shutter-ring"></div>
+          <div class="shutter-dot" id="shutter-dot"></div>
+        </button>
+
+        <!-- Placeholder (balance layout) -->
+        <div style="width:52px;height:52px;"></div>
+      </div>
+
     </div>
   </div>
 
-  <!-- TOAST -->
-  <div id="toast" class="hidden"></div>
+  <!-- ═══════════════════════════════════════
+       SCREEN: RESULT
+  ════════════════════════════════════════ -->
+  <div id="screen-result" class="screen">
+    <div class="topbar">
+      <button class="topbar-back" id="result-back-cam">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <span class="topbar-title">Scan Result</span>
+      <button class="topbar-back" id="result-home">
+        <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+          <path d="M3 12L12 4l9 8M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
 
-</div><!-- #app -->
+    <div class="result-scroll">
 
-<script>
-'use strict';
-
-// ── STATE ────────────────────────────────────────────────────────
-const S = {
-  stream: null,
-  facing: 'environment',
-  mode: 'scan',
-  lastUrl: null,
-  lastText: '',
-  busy: false,
-  speaking: false,
-  history: [],
-  worker: null,
-};
-
-// ── DOM ──────────────────────────────────────────────────────────
-const $ = id => document.getElementById(id);
-const video      = $('video');
-const canvas     = $('canvas');
-const ctx        = canvas.getContext('2d');
-const splash     = $('splash');
-const app        = $('app');
-const camWrap    = $('cam-wrap');
-const camHint    = $('cam-hint');
-const flashOv    = $('flash-ov');
-const procOv     = $('proc-ov');
-const procLbl    = $('proc-lbl');
-const procBar    = $('proc-bar');
-const noCam      = $('no-cam');
-const noCamMsg   = $('no-cam-msg');
-const scanBeam   = $('scan-beam');
-
-const btnShutter = $('btn-shutter');
-const btnFlip    = $('btn-flip');
-const btnLast    = $('btn-last');
-const thumbEmpty = $('thumb-empty');
-const thumbImg   = $('thumb-img');
-const btnSpeak   = $('btn-speak');
-const btnCopy    = $('btn-copy');
-const btnSave    = $('btn-save');
-const modePills  = document.querySelectorAll('.mode-pill');
-
-const resSheet   = $('result-sheet');
-const closeSheet = $('close-sheet');
-const resImg     = $('res-img');
-const resText    = $('result-text');
-const wordCount  = $('word-count');
-const confVal    = $('conf-val');
-const sSpeak     = $('s-speak');
-const sCopy      = $('s-copy');
-const sSave      = $('s-save');
-const ttsBar     = $('tts-bar');
-const ttsStatus  = $('tts-status');
-const ttsStopBtn = $('tts-stop');
-
-const btnHist    = $('btn-history');
-const histPanel  = $('hist-panel');
-const closeHist  = $('close-hist');
-const clearHist  = $('clear-hist');
-const histList   = $('hist-list');
-const histEmpty  = $('hist-empty');
-
-const toastEl    = $('toast');
-
-// ── BOOT ─────────────────────────────────────────────────────────
-window.addEventListener('load', () => {
-  loadHistory();
-  setTimeout(() => {
-    splash.style.display = 'none';
-    app.classList.remove('hidden');
-    startCamera();
-    initOCR();
-  }, 2500);
-  bindAll();
-  setMode('scan');
-});
-
-// ── OCR INIT ─────────────────────────────────────────────────────
-async function initOCR() {
-  try {
-    S.worker = await Tesseract.createWorker('eng', 1, {
-      logger: m => {
-        if (m.status === 'recognizing text') {
-          procBar.style.width = Math.round(m.progress * 100) + '%';
-        }
-      }
-    });
-  } catch(e) { console.warn('OCR init:', e); }
-}
-
-// ── CAMERA ───────────────────────────────────────────────────────
-async function startCamera() {
-  stopCamera();
-  noCam.classList.add('hidden');
-
-  const constraints = {
-    video: {
-      facingMode: { ideal: S.facing },
-      width:  { ideal: 1920 },
-      height: { ideal: 1080 },
-    },
-    audio: false,
-  };
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    S.stream = stream;
-    video.srcObject = stream;
-    video.play().catch(()=>{});
-  } catch(err) {
-    console.error(err);
-    let msg = 'Please allow camera permission and reload.';
-    if (err.name === 'NotAllowedError')
-      msg = 'Camera blocked. Tap the 🔒 lock icon in Chrome address bar → tap Permissions → allow Camera → reload.';
-    else if (err.name === 'NotFoundError')
-      msg = 'No camera found on this device.';
-    else if (err.name === 'NotReadableError')
-      msg = 'Camera is in use by another app. Close other apps and retry.';
-    noCamMsg.textContent = msg;
-    noCam.classList.remove('hidden');
-
-    // Retry without ideal constraints
-    if (err.name !== 'NotAllowedError' && err.name !== 'NotFoundError') {
-      try {
-        const s2 = await navigator.mediaDevices.getUserMedia({ video: true });
-        S.stream = s2; video.srcObject = s2; video.play().catch(()=>{});
-        noCam.classList.add('hidden');
-      } catch(_) {}
-    }
-  }
-}
-
-function stopCamera() {
-  if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; video.srcObject = null; }
-}
-
-function flipCamera() {
-  S.facing = S.facing === 'environment' ? 'user' : 'environment';
-  startCamera();
-  toast(S.facing === 'environment' ? '📷 Back camera' : '🤳 Front camera');
-}
-
-// ── CAPTURE ──────────────────────────────────────────────────────
-async function capture() {
-  if (!S.stream || S.busy) return;
-
-  canvas.width  = video.videoWidth  || 1280;
-  canvas.height = video.videoHeight || 720;
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-  const url = canvas.toDataURL('image/jpeg', 0.92);
-  S.lastUrl = url;
-  setThumb(url);
-  doFlash();
-
-  if (S.mode === 'scan') {
-    await runOCR(url);
-  } else {
-    S.lastText = '';
-    showSheet(url, '', 0);
-    unlockTools();
-  }
-}
-
-// ── OCR ──────────────────────────────────────────────────────────
-async function runOCR(url) {
-  if (S.busy) return;
-  S.busy = true;
-  procLbl.textContent = 'Recognizing text…';
-  procBar.style.width = '0%';
-  procOv.classList.remove('hidden');
-
-  try {
-    if (!S.worker) {
-      procLbl.textContent = 'Loading OCR engine…';
-      S.worker = await Tesseract.createWorker('eng');
-    }
-    const { data } = await S.worker.recognize(url);
-    const text = data.text.trim();
-    const conf = Math.round(data.confidence);
-
-    procOv.classList.add('hidden');
-    S.busy = false;
-    S.lastText = text;
-    showSheet(url, text, conf);
-    unlockTools();
-    addHistory(url, text);
-  } catch(e) {
-    procOv.classList.add('hidden');
-    S.busy = false;
-    toast('OCR failed. Try again.', 'err');
-  }
-}
-
-// ── SHEET ────────────────────────────────────────────────────────
-function showSheet(url, text, conf) {
-  resImg.src = url;
-  if (text) {
-    resText.textContent = text;
-    resText.style.color = '';
-  } else {
-    resText.innerHTML = '<span style="color:var(--muted);font-style:italic;">No text detected in this image.</span>';
-  }
-  const wc = text ? text.split(/\s+/).filter(Boolean).length : 0;
-  wordCount.textContent = wc + (wc === 1 ? ' word' : ' words');
-  confVal.textContent = conf > 0 ? conf + '% confidence' : '—';
-  resSheet.classList.remove('hidden');
-  ttsBar.classList.add('hidden');
-}
-
-function closeResultSheet() {
-  resSheet.classList.add('hidden');
-  stopSpeak();
-}
-
-// ── TTS ──────────────────────────────────────────────────────────
-function speak(text) {
-  if (!text || !text.trim()) { toast('No text to speak', 'err'); return; }
-  if (!('speechSynthesis' in window)) { toast('TTS not supported on this browser', 'err'); return; }
-  stopSpeak();
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US'; u.rate = 0.92; u.pitch = 1.0;
-  u.onstart = () => {
-    S.speaking = true;
-    ttsBar.classList.remove('hidden');
-    ttsStatus.textContent = 'Speaking…';
-  };
-  u.onend = u.onerror = () => {
-    S.speaking = false;
-    ttsBar.classList.add('hidden');
-  };
-  speechSynthesis.speak(u);
-}
-
-function stopSpeak() {
-  if ('speechSynthesis' in window) speechSynthesis.cancel();
-  S.speaking = false;
-  ttsBar.classList.add('hidden');
-}
-
-// ── SAVE PHOTO ────────────────────────────────────────────────────
-function savePhoto(url) {
-  if (!url) { toast('No photo to save', 'err'); return; }
-  // Try Web Share (native Android save)
-  if (navigator.share) {
-    fetch(url).then(r => r.blob()).then(blob => {
-      const file = new File([blob], 'scan_' + Date.now() + '.jpg', { type: 'image/jpeg' });
-      return navigator.share({ files: [file], title: 'TextProduct Scanner' });
-    }).then(() => toast('Photo shared / saved!', 'ok'))
-      .catch(() => dlFallback(url));
-  } else {
-    dlFallback(url);
-  }
-}
-
-function dlFallback(url) {
-  const a = document.createElement('a');
-  a.href = url; a.download = 'scan_' + Date.now() + '.jpg';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  toast('Photo downloaded!', 'ok');
-}
-
-// ── COPY ─────────────────────────────────────────────────────────
-function copyText(text) {
-  if (!text || !text.trim()) { toast('No text to copy', 'err'); return; }
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => toast('Text copied!', 'ok')).catch(() => legacyCopy(text));
-  } else { legacyCopy(text); }
-}
-function legacyCopy(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;';
-  document.body.appendChild(ta); ta.select(); document.execCommand('copy');
-  document.body.removeChild(ta); toast('Text copied!', 'ok');
-}
-
-// ── HISTORY ──────────────────────────────────────────────────────
-function addHistory(url, text) {
-  S.history.unshift({ id: Date.now(), url, text, date: new Date().toLocaleString() });
-  if (S.history.length > 30) S.history = S.history.slice(0, 30);
-  saveHistory();
-}
-function saveHistory() {
-  try { localStorage.setItem('tps_hist', JSON.stringify(S.history)); } catch(_) {}
-}
-function loadHistory() {
-  try { const r = localStorage.getItem('tps_hist'); if (r) S.history = JSON.parse(r); } catch(_) {}
-}
-
-function renderHistory() {
-  // Remove old items
-  Array.from(histList.children).forEach(c => { if (c !== histEmpty) c.remove(); });
-
-  if (!S.history.length) { histEmpty.classList.remove('hidden'); return; }
-  histEmpty.classList.add('hidden');
-
-  S.history.forEach((item, i) => {
-    const div = document.createElement('div');
-    div.className = 'hist-item';
-    const preview = item.text ? item.text.replace(/\n/g,' ').slice(0,70) : '(Photo only)';
-    div.innerHTML = `
-      <img class="hist-thumb" src="${item.url||''}" alt="" onerror="this.style.display='none'"/>
-      <div class="hist-body">
-        <div class="hist-preview">${preview || '(empty)'}</div>
-        <div class="hist-date">${item.date}</div>
+      <!-- Captured photo -->
+      <div class="result-img-wrap">
+        <img id="result-img" src="" alt="Captured"/>
       </div>
-      <div class="hist-acts">
-        <button class="hist-act-btn" data-action="speak" data-i="${i}" title="Speak">
-          <svg viewBox="0 0 18 18" fill="none" width="14" height="14"><path d="M8 3L4 7H1v4h3l4 4V3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M11.5 6.5a4 4 0 010 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+
+      <!-- Error banner (shown if backend failed) -->
+      <div class="error-banner hidden" id="error-banner">
+        <span>⚠️</span>
+        <span id="error-msg">Could not connect to server</span>
+      </div>
+
+      <!-- OCR Text result card -->
+      <div class="result-card" id="result-text-card">
+        <div class="result-card-header">
+          <span class="result-card-title">📝 Recognized Text</span>
+          <div class="result-meta-row">
+            <span class="meta-chip" id="word-count-chip">0 words</span>
+            <span class="meta-chip accent-chip" id="conf-chip" style="display:none"></span>
+          </div>
+        </div>
+        <div class="result-textbox" id="result-textbox" contenteditable="true" spellcheck="false">
+          <span class="placeholder-text">No text detected</span>
+        </div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="result-actions">
+        <button class="act-btn act-green" id="act-speak">
+          <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
+            <path d="M10 4L5 8H2v6h3l5 4V4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M14.5 7.5a5 5 0 010 7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            <path d="M17.5 5a9 9 0 010 12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          <span id="speak-label">Read Aloud</span>
         </button>
-        <button class="hist-act-btn" data-action="copy" data-i="${i}" title="Copy">
-          <svg viewBox="0 0 18 18" fill="none" width="14" height="14"><rect x="6" y="6" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M4 12H3a2 2 0 01-2-2V3a2 2 0 012-2h7a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.5"/></svg>
+        <button class="act-btn act-grey" id="act-copy">
+          <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
+            <rect x="8" y="8" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.7"/>
+            <path d="M5 14H4a2 2 0 01-2-2V4a2 2 0 012-2h8a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7"/>
+          </svg>
+          <span id="copy-label">Copy Text</span>
         </button>
-        <button class="hist-act-btn" data-action="save" data-i="${i}" title="Save">
-          <svg viewBox="0 0 18 18" fill="none" width="14" height="14"><path d="M9 2v10M5 8l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <button class="act-btn act-grey" id="act-save">
+          <svg viewBox="0 0 22 22" fill="none" width="17" height="17">
+            <path d="M11 3v12M7 10l4 5 4-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 18h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+          </svg>
+          Save Photo
         </button>
-      </div>`;
+      </div>
 
-    // Click item body → reopen
-    div.querySelector('.hist-body').addEventListener('click', () => {
-      S.lastUrl = item.url; S.lastText = item.text;
-      histPanel.classList.add('hidden');
-      showSheet(item.url, item.text, 0);
-      unlockTools();
-    });
+      <!-- TTS speaking bar -->
+      <div class="tts-bar hidden" id="tts-bar">
+        <div class="tts-waves">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <span class="tts-label">Speaking…</span>
+        <button class="tts-stop" id="tts-stop">Stop</button>
+      </div>
 
-    // Action buttons
-    div.querySelectorAll('.hist-act-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
-        e.stopPropagation();
-        const it = S.history[+btn.dataset.i];
-        if (!it) return;
-        if (btn.dataset.action === 'speak') speak(it.text);
-        if (btn.dataset.action === 'copy')  copyText(it.text);
-        if (btn.dataset.action === 'save')  savePhoto(it.url);
-      });
-    });
+      <!-- Scan again button -->
+      <button class="scan-again-btn" id="scan-again-btn">
+        📷 Scan Again
+      </button>
 
-    histList.appendChild(div);
-  });
-}
+      <div style="height:32px"></div>
+    </div>
+  </div>
 
-// ── HELPERS ──────────────────────────────────────────────────────
-function doFlash() {
-  flashOv.classList.remove('hidden');
-  setTimeout(() => flashOv.classList.add('hidden'), 320);
-}
+    <!-- TOAST notification -->
+  <div id="toast" class="toast hidden"></div>
 
-function setThumb(url) {
-  thumbEmpty.classList.add('hidden');
-  thumbImg.src = url;
-  thumbImg.classList.remove('hidden');
-}
-
-function unlockTools() {
-  btnSpeak.disabled = false;
-  btnCopy.disabled  = false;
-  btnSave.disabled  = false;
-}
-
-function setMode(mode) {
-  S.mode = mode;
-  modePills.forEach(p => p.classList.toggle('active', p.dataset.mode === mode));
-  document.body.className = 'mode-' + mode;
-  camHint.textContent = mode === 'scan' ? 'Point at text to scan' : 'Tap shutter to take photo';
-  scanBeam.style.display = mode === 'scan' ? 'block' : 'none';
-}
-
-let toastTimer;
-function toast(msg, type = '') {
-  toastEl.textContent = msg;
-  toastEl.className = type === 'ok' ? 'toast-ok' : type === 'err' ? 'toast-err' : '';
-  toastEl.classList.remove('hidden');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.add('hidden'), 2600);
-}
-
-// ── EVENTS ───────────────────────────────────────────────────────
-function bindAll() {
-  btnShutter.addEventListener('click', capture);
-  btnFlip.addEventListener('click', flipCamera);
-
-  btnLast.addEventListener('click', () => {
-    if (S.lastUrl) { showSheet(S.lastUrl, S.lastText, 0); unlockTools(); }
-    else toast('No capture yet');
-  });
-
-  btnSpeak.addEventListener('click', () => speak(S.lastText));
-  btnCopy.addEventListener('click',  () => copyText(S.lastText));
-  btnSave.addEventListener('click',  () => savePhoto(S.lastUrl));
-
-  modePills.forEach(p => p.addEventListener('click', () => setMode(p.dataset.mode)));
-
-  closeSheet.addEventListener('click', closeResultSheet);
-  sSpeak.addEventListener('click', () => {
-    const t = resText.textContent;
-    if (S.speaking) stopSpeak(); else speak(t);
-  });
-  sCopy.addEventListener('click', () => copyText(resText.textContent));
-  sSave.addEventListener('click', () => savePhoto(S.lastUrl));
-  ttsStopBtn.addEventListener('click', stopSpeak);
-
-  btnHist.addEventListener('click', () => { renderHistory(); histPanel.classList.remove('hidden'); });
-  closeHist.addEventListener('click', () => histPanel.classList.add('hidden'));
-  clearHist.addEventListener('click', () => {
-    if (confirm('Delete all scan history?')) {
-      S.history = []; saveHistory(); renderHistory(); toast('History cleared');
-    }
-  });
-
-  // Pinch zoom
-  let ld = null;
-  camWrap.addEventListener('touchstart', e => { if (e.touches.length === 2) ld = null; }, { passive: true });
-  camWrap.addEventListener('touchmove', e => {
-    if (e.touches.length !== 2) return;
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const d = Math.hypot(dx, dy);
-    if (ld) {
-      const cur = parseFloat((video.style.transform || 'scale(1)').match(/[\d.]+/)?.[0] || 1);
-      const z = Math.min(4, Math.max(1, cur * (d / ld)));
-      video.style.transform = `scale(${z})`;
-    }
-    ld = d;
-  }, { passive: true });
-  camWrap.addEventListener('touchend', () => { ld = null; }, { passive: true });
-
-  // Focus dot on tap
-  camWrap.addEventListener('click', e => {
-    if (e.target !== btnShutter) showFocusDot(e.clientX, e.clientY);
-  });
-
-  // Stop camera when page hidden
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) stopCamera(); else startCamera();
-  });
-}
-
-// Focus ring animation
-function showFocusDot(x, y) {
-  const old = document.querySelector('.focus-dot');
-  if (old) old.remove();
-  if (!document.querySelector('#fdStyle')) {
-    const st = document.createElement('style');
-    st.id = 'fdStyle';
-    st.textContent = '@keyframes fdpop{0%{opacity:1;transform:scale(1.5)}100%{opacity:0;transform:scale(1)}}';
-    document.head.appendChild(st);
-  }
-  const d = document.createElement('div');
-  d.className = 'focus-dot';
-  d.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:50px;height:50px;margin:-25px 0 0 -25px;border:2px solid #4fffb0;border-radius:50%;pointer-events:none;z-index:5;animation:fdpop .4s ease forwards;`;
-  camWrap.appendChild(d);
-  setTimeout(() => d.remove(), 420);
-}
-
-// Expose for retry button
-window.startCamera = startCamera;
-</script>
+  <!-- Scripts (UPDATED: Removed 'js/' so it looks in the main folder) -->
+  <script src="settings.js"></script>
+  <script src="camera.js"></script>
+  <script src="ocr.js"></script>
+  <script src="tts.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
+
